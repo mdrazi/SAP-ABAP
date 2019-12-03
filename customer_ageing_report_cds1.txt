@@ -1,0 +1,22 @@
+@AbapCatalog.sqlViewName: 'Z222_CDS_1'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'CDS View 1'
+define view Z222_CDS1 
+with parameters p_date_low : bldat,
+                p_date : bldat,
+                p_date_high : bldat
+as select from bsid
+{
+kunnr as custnum,
+belnr as acc_doc_number,
+dats_days_between(bldat,$parameters.p_date) as outstanding_days,
+bukrs as company_code,
+dmbtr as amount,
+0 as bucket_1,
+0 as bucket_2,
+0 as bucket_3,
+0 as bucket_4
+} where bldat between $parameters.p_date_low and $parameters.p_date_high
+group by kunnr,bukrs,belnr,bldat,dmbtr 

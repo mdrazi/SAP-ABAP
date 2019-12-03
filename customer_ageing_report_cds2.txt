@@ -1,0 +1,40 @@
+@AbapCatalog.sqlViewName: 'Z222_SQL2'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'CDS Customer ageing 1'
+define view Z222_CDS2 
+as select from Z222_CDS1( p_date_low: '20110601', 
+                          p_date: '20171104', 
+                          p_date_high: '20181231') 
+{
+    //Z222_CDS1 
+    custnum, 
+    acc_doc_number, 
+    outstanding_days, 
+    company_code, 
+    amount, 
+    case 
+       when outstanding_days <= 300
+       then amount
+       else 0 
+       end as bucket_1,
+       
+    case 
+       when outstanding_days > 300 and outstanding_days <= 600
+       then amount
+       else 0
+       end as bucket_2,
+   
+   case 
+       when outstanding_days > 600 and outstanding_days <= 900
+       then amount
+       else 0
+       end as bucket_3,
+       
+   case 
+       when outstanding_days > 900 and outstanding_days <= 1200
+       then amount
+       else 0
+       end as bucket_4
+ }  

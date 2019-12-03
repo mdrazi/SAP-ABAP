@@ -1,0 +1,151 @@
+*&---------------------------------------------------------------------*
+*& Report Z222_CUST_AGEING_RPT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT Z222_CUST_AGEING_RPT.
+TYPES: BEGIN OF TY_FINAL,
+         BUKRS TYPE BSID-BUKRS, "Company Code
+         BELNR TYPE BSID-BELNR, "Accounting Document Number
+         BLDAT TYPE BSID-BLDAT, "Document Date
+         DMBTR TYPE BSID-DMBTR, "Amount in Currency
+         KUNNR TYPE KNA1-KUNNR, "Customer Number
+         NAME1 TYPE KNA1-NAME1, "Name
+         ORT01 TYPE KNA1-ORT01, "City
+         DAY1  LIKE BSID-DMBTR,
+         DAY2  LIKE BSID-DMBTR,
+         DAY3  LIKE BSID-DMBTR,
+         DAY4  LIKE BSID-DMBTR,
+         DAY5  LIKE BSID-DMBTR,
+         DAYS  TYPE I,
+         DD    TYPE I,
+       END OF TY_FINAL.
+
+DATA: T_FINAL TYPE TABLE OF TY_FINAL,
+      W_FINAL TYPE TY_FINAL,
+      G_BLDAT TYPE BSID-BLDAT.
+
+DATA: T_FCAT   TYPE SLIS_T_FIELDCAT_ALV,
+      W_FCAT   TYPE SLIS_FIELDCAT_ALV,
+      W_LAYOUT TYPE SLIS_LAYOUT_ALV.
+
+DATA: DAY_1 TYPE C,
+      DAY_2 TYPE C,
+      DAY_3 TYPE C,
+      DAY_4 TYPE C,
+      DAY_5 TYPE C.
+
+SELECT-OPTIONS: S_BLDAT FOR G_BLDAT DEFAULT '20150101' TO '20150630'.
+
+START-OF-SELECTION.
+  PERFORM GET_DATA.
+  PERFORM GET_DAYS.
+  PERFORM GET_BUCKETS.
+  PERFORM DISPLAY_REPORT.
+
+TOP-OF-PAGE.
+  PERFORM SET_HEADER.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM GET_DATA.
+  SELECT A~BUKRS
+         A~BELNR
+         A~BLDAT
+         A~DMBTR
+         B~KUNNR
+         B~NAME1
+         B~ORT01
+    FROM BSID AS A INNER JOIN KNA1 AS B
+    ON A~KUNNR = B~KUNNR
+    INTO  CORRESPONDING FIELDS OF TABLE T_FINAL
+    WHERE A~BLDAT IN S_BLDAT.
+  SORT T_FINAL BY KUNNR.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DAYS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM GET_DAYS.
+  LOOP AT T_FINAL INTO W_FINAL.
+    CALL FUNCTION 'FIMA_DAYS_AND_MONTHS_AND_YEARS'
+      EXPORTING
+        I_DATE_FROM = W_FINAL-BLDAT
+*       I_KEY_DAY_FROM       =
+        I_DATE_TO   = SY-DATUM
+*       I_KEY_DAY_TO         =
+*       I_FLG_SEPARATE       = ' '
+      IMPORTING
+        E_DAYS      = W_FINAL-DAYS.
+*     E_MONTHS             =
+*     E_YEARS              =
+
+    MOVE W_FINAL-DAYS TO W_FINAL-DD.
+    MODIFY T_FINAL FROM W_FINAL.
+  ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_BUCKETS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM GET_BUCKETS.
+  LOOP AT T_FINAL INTO W_FINAL.
+    IF W_FINAL-DAYS LE 500.
+      MOVE W_FINAL-DMBTR TO W_FINAL-DAY1.
+      MODIFY T_FINAL FROM W_FINAL.
+    ELSEIF W_FINAL-DAYS GE 500 AND W_FINAL-DAYS LE 1000.
+      MOVE W_FINAL-DMBTR TO W_FINAL-DAY2.
+      MODIFY T_FINAL FROM W_FINAL.
+    ELSEIF W_FINAL-DAYS GE 1000 AND W_FINAL-DAYS LE 1500.
+      MOVE W_FINAL-DMBTR TO W_FINAL-DAY3.
+      MODIFY T_FINAL FROM W_FINAL.
+    ELSEIF  W_FINAL-DAYS GE 1500 AND W_FINAL-DAYS LE 2000.
+      MOVE W_FINAL-DMBTR TO W_FINAL-DAY4.
+      MODIFY T_FINAL FROM W_FINAL.
+    ELSEIF W_FINAL-DAYS GE 2000.
+      MOVE W_FINAL-DMBTR TO W_FINAL-DAY5.
+      MODIFY T_FINAL FROM W_FINAL.
+    ENDIF.
+  ENDLOOP.
+  SORT T_FINAL BY KUNNR.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_REPORT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+
+FORM DISPLAY_REPORT.
+  LOOP AT T_FINAL INTO W_FINAL.
+    WRITE:/4 W_FINAL-KUNNR COLOR 1,
+          15 W_FINAL-BELNR,
+          32 W_FINAL-BUKRS,
+          45 W_FINAL-DAYS,
+             W_FINAL-DAY1,
+             W_FINAL-DAY2,
+             W_FINAL-DAY3,
+             W_FINAL-DAY4,
+             W_FINAL-DAY5.
+    ENDLOOP.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  SET_HEADER
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM SET_HEADER.
+  WRITE:/3 'Cust Num',
+       15  'Document Num',
+       30  'Company Code',
+       45  'Outstanding Days',
+       68    '0-500',
+       84    '501-1000',
+       100    '1001-1500',
+       113    '1501-2000',
+       135    '2001-2500'.
+  ULINE.
+ENDFORM.
